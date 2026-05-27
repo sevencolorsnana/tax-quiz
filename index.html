@@ -732,16 +732,16 @@ function renderQ() {
   document.getElementById('qRank').textContent=q.rank||'';
   document.getElementById('qSec').textContent='問題'+q.section+' '+q.title;
   document.getElementById('qHeading').textContent=q.heading||'';
+  document.getElementById('resultBox').style.display='none';
+  document.getElementById('ratingArea').style.display='none';
+
+  const num=q.currentNum||'①';
   document.getElementById('qText').innerHTML=extractHeadingsWithBlink(q.questionText, num);
   // 点滅箇所付近にスクロール
   setTimeout(()=>{
     const blinkEl=document.querySelector('.blink-num');
     if(blinkEl) blinkEl.scrollIntoView({behavior:'smooth',block:'center'});
   },150);
-  document.getElementById('resultBox').style.display='none';
-  document.getElementById('ratingArea').style.display='none';
-
-  const num=q.currentNum||'①';
   document.getElementById('fixedTarget').textContent=num+' を答えなさい';
   document.getElementById('skipSecLabel').textContent='問題'+q.section;
   document.getElementById('ansInput').value='';
