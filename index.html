@@ -606,19 +606,33 @@ function showTab(t,el) {
 }
 
 function extractHeadings(text) {
-  const lines=text.split('\n');
-  const result=[];
-  const headRe=/^\u3014[^\u3015]+\u3015/;
-  lines.forEach(function(line){
-    const trimmed=line.trim();
-    if(headRe.test(trimmed)){
-      var short=trimmed.length>40?trimmed.slice(0,40)+'…':trimmed;
-      result.push('<span style="color:var(--t2);font-size:13px">'+short+'</span>');
+  // 〔〕見出し行 + そのセクション全文を表示（次の見出しまですべて）
+  const lines = text.split('\n');
+  const headRe = /^\u3014[^\u3015]+\u3015/;
+  const result = [];
+  let i = 0;
+  while (i < lines.length) {
+    const trimmed = lines[i].trim();
+    if (headRe.test(trimmed)) {
+      result.push('<div style="color:var(--g);font-size:12px;font-weight:500;margin-top:10px;margin-bottom:2px">' + trimmed + '</div>');
+      i++;
+      const bodyLines = [];
+      while (i < lines.length && !headRe.test(lines[i].trim())) {
+        const bl = lines[i].trim();
+        if (bl) bodyLines.push(bl);
+        i++;
+      }
+      if (bodyLines.length) {
+        result.push('<div style="font-size:13px;color:var(--t);line-height:1.9;margin-bottom:4px">' + bodyLines.join('<br>') + '</div>');
+      }
+    } else {
+      i++;
     }
-  });
-  if(!result.length) return text.replace(/\n/g,'<br>');
-  return result.join('<br>');
+  }
+  if (!result.length) return text.replace(/\n/g, '<br>');
+  return result.join('');
 }
+
 
 function renderQ() {
   const q=S.queue[S.cur];
