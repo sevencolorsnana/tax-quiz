@@ -405,6 +405,14 @@ input,textarea,button{font-family:'Noto Sans JP',sans-serif}
         <div class="setup-title">スキップ設定</div>
         <div class="field"><label class="field-label">穴の正答率がN%以上でスキップ</label><input class="inp" id="cfgSkip" type="number" value="80" min="50" max="100" oninput="saveCfg()"></div>
         <div class="field"><label class="field-label">スキップに必要な最低出題回数</label><input class="inp" id="cfgSkipMin" type="number" value="3" min="1" oninput="saveCfg()"></div>
+        <div class="field" style="display:flex;align-items:center;justify-content:space-between;min-height:44px">
+          <label class="field-label" style="margin:0">学習済みも即時復習する</label>
+          <label style="position:relative;display:inline-block;width:48px;height:26px;cursor:pointer">
+            <input type="checkbox" id="cfgImmediate" onchange="toggleImmediateMode()" style="opacity:0;width:0;height:0">
+            <span id="toggleTrack" style="position:absolute;inset:0;background:var(--br2);border-radius:13px;transition:.3s"></span>
+            <span id="toggleThumb" style="position:absolute;left:3px;top:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:.3s;box-shadow:0 1px 3px rgba(0,0,0,.3)"></span>
+          </label>
+        </div>
       </div>
       <div class="setup-card">
         <div class="setup-title">データ管理</div>
@@ -464,6 +472,7 @@ let S = {
   queue: [],
   cur: 0,
   answered: false,
+  immediateMode: false, // trueの場合は学習済みも出題
 };
 
 // ===== Config =====
@@ -646,24 +655,71 @@ function updateRatingLabels() {
 // ===== Queue =====
 function buildQueue() {
   const today=new Date().toISOString().slice(0,10);
-  const c=getCfg();
+  const cfg=getCfg();
   const eligible=getEligible();
-  const due=eligible.filter(q=>!q.nextReview||q.nextReview<=today);
-  const shuffled=[...due].sort(()=>Math.random()-0.5);
-  const numRe=/[\u2460-\u2473]/;
+
+  // 即時復習モードの場合は期日フィルタなし
+  const due = S.immediateMode
+    ? eligible
+    : eligible.filter(q=>!q.nextReview||q.nextReview<=today);
+
+  // ㉑以降も含む丸数字をすべて認識
+  function isCircledNum(ch) {
+    const cp = ch.codePointAt(0);
+    // ①-⑳ (U+2460-U+2473)
+    if(cp>=0x2460&&cp<=0x2473) return true;
+    // ㉑-㉟ (U+3251-U+325F)
+    if(cp>=0x3251&&cp<=0x325F) return true;
+    // ㊱-㊿ (U+32B1-U+32BF)
+    if(cp>=0x32B1&&cp<=0x32BF) return true;
+    return false;
+  }
+
+  // 丸数字の順序番号を返す（①=1, ②=2, ..., ㉑=21...）
+  function circledNumOrder(ch) {
+    const cp = ch.codePointAt(0);
+    if(cp>=0x2460&&cp<=0x2473) return cp-0x2460+1;
+    if(cp>=0x3251&&cp<=0x325F) return cp-0x3251+21;
+    if(cp>=0x32B1&&cp<=0x32BF) return cp-0x32B1+37;
+    return 99;
+  }
+
+  // 題番号でシャッフル、題内は〔1〕〔2〕…の順
+  const secMap = {};
+  due.forEach(q=>{
+    if(!secMap[q.section]) secMap[q.section]=[];
+    secMap[q.section].push(q);
+  });
+
+  // 題内を大見出し順でソート
+  Object.keys(secMap).forEach(sec=>{
+    secMap[sec].sort((a,b)=>{
+      const headNum = h=>{ const m=(h||'').match(/〔(\d+)〕/); return m?parseInt(m[1]):99; };
+      return headNum(a.heading)-headNum(b.heading);
+    });
+  });
+
+  // 題をシャッフル
+  const shuffledSecs = Object.keys(secMap).sort(()=>Math.random()-0.5);
+
   const expanded=[];
-  shuffled.forEach(q=>{
-    const targets=[...q.targetNums].filter(ch=>numRe.test(ch));
-    targets.forEach(num=>{
-      const key=q.id+'__'+num;
-      const hist=S.numHistory[key]||{correct:0,total:0};
-      if(hist.total>=c.skipMin && hist.correct/hist.total>=c.skipPct/100) return;
-      expanded.push(Object.assign({},q,{currentNum:num,_numKey:key}));
+  shuffledSecs.forEach(sec=>{
+    secMap[sec].forEach(q=>{
+      const targets=[...q.targetNums].filter(ch=>isCircledNum(ch));
+      // 番号順にソート
+      targets.sort((a,b)=>circledNumOrder(a)-circledNumOrder(b));
+      targets.forEach(num=>{
+        const key=q.id+'__'+num;
+        const hist=S.numHistory[key]||{correct:0,total:0};
+        if(!S.immediateMode && hist.total>=cfg.skipMin && hist.correct/hist.total>=cfg.skipPct/100) return;
+        expanded.push(Object.assign({},q,{currentNum:num,_numKey:key}));
+      });
     });
   });
   S.queue=expanded;
   S.cur=0; S.answered=false;
 }
+
 
 // ===== Stats =====
 function updateStats() {
@@ -693,6 +749,7 @@ function showTab(t,el) {
 function extractHeadingsWithBlink(text, targetNum) {
   // 問題文中の〔targetNum〕を点滅タグに置換
   const blinkTag = '<span class="blink-num">〔'+targetNum+'〕</span>';
+  // 〔num〕形式で置換（㉑以降も対応）
   const processed = text.split('〔'+targetNum+'〕').join(blinkTag);
   return extractHeadings(processed);
 }
@@ -768,22 +825,49 @@ function renderQ() {
 
 function parseAnswers(str) {
   const map={};
-  const re=/[\u2460-\u2473][^\u2460-\u2473]+/g;
-  const matches=str.match(re)||[];
-  matches.forEach(function(chunk){
-    const m=chunk.match(/^([\u2460-\u2473])([\s\S]+)$/);
-    if(m) map[m[1]]=m[2].trim();
+  // ①-⑳, ㉑-㉟, ㊱-㊿ すべて対応
+  const circledRe = /[\u2460-\u2473\u3251-\u325F\u32B1-\u32BF]/;
+  const parts = str.split(circledRe);
+  const keys = str.match(new RegExp('[\\u2460-\\u2473\\u3251-\\u325F\\u32B1-\\u32BF]','g'))||[];
+  keys.forEach((k,i)=>{
+    const val = (parts[i+1]||'').trim();
+    if(val) map[k] = val;
   });
   return map;
 }
 
+function normalizeStr(s) {
+  return s
+    // 全角→半角（数字・英字・記号）
+    .replace(/[０-９]/g, c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0))
+    .replace(/[Ａ-Ｚａ-ｚ]/g, c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0))
+    // カンマ（数字区切り）を除去
+    .replace(/(\d),(\d)/g, '$1$2')
+    .replace(/(\d)，(\d)/g, '$1$2')
+    // 全角スペース→半角
+    .replace(/　/g, ' ')
+    // 前後スペース除去
+    .trim();
+}
+function normalizeStr(s) {
+  if(!s) return '';
+  return s
+    .replace(/[０-９]/g, ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0))
+    .replace(/[Ａ-Ｚａ-ｚ]/g, ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0))
+    .replace(/(\d)[,，](\d)/g, '$1$2')
+    .replace(/\u3000/g,' ')
+    .trim();
+}
 function matchAnswer(ua, expected) {
   if(!expected) return false;
-  if(ua.includes(expected)) return true;
-  const withoutEtc=expected.replace(/等々?/g,'');
-  if(withoutEtc.length>0&&ua.includes(withoutEtc)) return true;
+  const n = normalizeStr;
+  if(n(ua).includes(n(expected))) return true;
+  const withoutEtc = n(expected).replace(/等々?/g,'');
+  if(withoutEtc.length>0 && n(ua).includes(withoutEtc)) return true;
+  if(n(expected).length>0 && n(ua.replace(/等々?/g,'')).includes(n(expected.replace(/等々?/g,'')))) return true;
   return false;
 }
+
 
 function showCorrectAnim() {
   // 画面中央にコンフェッティ
@@ -1056,6 +1140,16 @@ document.addEventListener('keydown', function(e) {
   const map={'1':'again','2':'hard','3':'good'};
   if(map[e.key]){e.preventDefault();rateNext(map[e.key]);}
 });
+
+function toggleImmediateMode() {
+  const cb = document.getElementById('cfgImmediate');
+  const track = document.getElementById('toggleTrack');
+  const thumb = document.getElementById('toggleThumb');
+  S.immediateMode = cb.checked;
+  track.style.background = cb.checked ? 'var(--g)' : 'var(--br2)';
+  thumb.style.left = cb.checked ? '25px' : '3px';
+  buildQueue(); updateStats(); renderQ();
+}
 
 function clearLocal() {
   if(!confirm('ローカル履歴をリセットしますか？')) return;
