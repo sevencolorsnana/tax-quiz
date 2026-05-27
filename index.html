@@ -438,7 +438,10 @@ input,textarea,button{font-family:'Noto Sans JP',sans-serif}
   <div class="modal-sheet">
     <div class="modal-title">
       出題範囲を選択
-      <button onclick="selectAllSections()" style="float:right;font-size:12px;padding:4px 10px;border:.5px solid var(--br2);border-radius:5px;background:transparent;color:var(--t2);cursor:pointer">全選択</button>
+      <span style="float:right;display:flex;gap:6px">
+        <button onclick="selectAllSections()" style="font-size:12px;padding:4px 10px;border:.5px solid var(--br2);border-radius:5px;background:transparent;color:var(--t2);cursor:pointer;font-family:inherit">全選択</button>
+        <button onclick="deselectAllSections()" style="font-size:12px;padding:4px 10px;border:.5px solid var(--br2);border-radius:5px;background:transparent;color:var(--t2);cursor:pointer;font-family:inherit">全解除</button>
+      </span>
     </div>
     <div id="sectionCheckList"></div>
     <button class="btn btn-p" style="width:100%;min-height:48px;margin-top:14px" onclick="applyRange()">
@@ -582,7 +585,13 @@ async function syncAll() {
     }).filter(q => q.id && q.section);
 
     // 全題番号リスト（重複なし・ソート）
-    S.allSections = [...new Set(S.questions.map(q=>q.section))].sort();
+    // 題番号を数値順にソート（例: 2-1, 2-2, ..., 2-11, 2-12）
+  S.allSections = [...new Set(S.questions.map(q=>q.section))].sort((a,b)=>{
+    const parse = s => s.split('-').map(Number);
+    const [a1,a2=0] = parse(a);
+    const [b1,b2=0] = parse(b);
+    return a1!==b1 ? a1-b1 : a2-b2;
+  });
     // selectedSectionsが空なら全題を選択状態にする
     if(S.selectedSections.length === 0) S.selectedSections = [...S.allSections];
 
@@ -997,7 +1006,11 @@ function renderList() {
 // ===== 範囲選択モーダル =====
 function openRangeModal() {
   const list=document.getElementById('sectionCheckList');
-  const secs=S.allSections.length?S.allSections:[...new Set(S.questions.map(q=>q.section))].sort();
+  const secs=S.allSections.length?S.allSections:[...new Set(S.questions.map(q=>q.section))].sort((a,b)=>{
+    const p=s=>s.split('-').map(Number);
+    const [a1,a2=0]=p(a),[b1,b2=0]=p(b);
+    return a1!==b1?a1-b1:a2-b2;
+  });
   if(!secs.length){alert('先に同期してください');return;}
   list.innerHTML=secs.map(sec=>{
     const q=S.questions.find(x=>x.section===sec);
@@ -1019,6 +1032,9 @@ function closeRangeModal(e) {
 }
 function selectAllSections() {
   document.querySelectorAll('#sectionCheckList input[type=checkbox]').forEach(cb=>cb.checked=true);
+}
+function deselectAllSections() {
+  document.querySelectorAll('#sectionCheckList input[type=checkbox]').forEach(cb=>cb.checked=false);
 }
 function applyRange() {
   const checked=[...document.querySelectorAll('#sectionCheckList input:checked')].map(cb=>cb.value);
