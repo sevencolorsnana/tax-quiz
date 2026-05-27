@@ -155,6 +155,52 @@ input,textarea,button{font-family:'Noto Sans JP',sans-serif}
 .divider-line{display:flex;justify-content:space-between;margin-top:4px}
 .divider-line span{font-size:10px;color:var(--t3)}
 
+/* 点滅する穴埋め箇所 */
+@keyframes blink-target {
+  0%,100%{background:var(--g);color:#fff;}
+  50%{background:#fff;color:var(--g);border-color:var(--g);}
+}
+.blink-num{
+  display:inline-block;padding:1px 6px;border-radius:4px;
+  background:var(--g);color:#fff;font-weight:500;
+  border:1.5px solid var(--g);
+  animation:blink-target 1s ease-in-out infinite;
+}
+/* キーボードショートカット表示 */
+.kb-hint{
+  display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;
+}
+.kb-key{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:28px;height:28px;border:.5px solid var(--br2);
+  border-radius:5px;font-size:12px;font-weight:500;
+  background:var(--bg2);color:var(--t2);
+}
+/* 範囲選択モーダル */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;
+  display:flex;align-items:flex-end;justify-content:center;
+}
+.modal-overlay.hidden{display:none}
+.modal-sheet{
+  width:100%;max-width:520px;background:var(--bg);
+  border-radius:var(--rl2) var(--rl2) 0 0;
+  padding:20px 16px calc(20px + env(safe-area-inset-bottom));
+  max-height:80vh;overflow-y:auto;
+}
+.modal-title{font-size:15px;font-weight:500;margin-bottom:14px}
+.section-check{
+  display:flex;align-items:center;gap:10px;padding:10px 0;
+  border-bottom:.5px solid var(--br);cursor:pointer;min-height:44px;
+}
+.section-check:last-child{border-bottom:none}
+.section-check input{width:20px;height:20px;accent-color:var(--g);cursor:pointer}
+.section-check-label{font-size:13px;color:var(--t);flex:1}
+.active-range-badge{
+  font-size:11px;padding:2px 7px;border-radius:4px;
+  background:var(--am);color:var(--ad);margin-left:6px;
+}
+
 /* List */
 .qi{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:.5px solid var(--br)}
 .qi:last-child{border-bottom:none}
@@ -181,6 +227,10 @@ input,textarea,button{font-family:'Noto Sans JP',sans-serif}
       <div class="hdr-title">理論暗記</div>
       <div class="hdr-sub" id="hdrSub">設定タブでトークンを入力してください</div>
     </div>
+    <button class="sync-btn" id="rangeBtn" onclick="openRangeModal()" style="margin-right:4px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      範囲
+    </button>
     <button class="sync-btn" id="syncBtn" onclick="syncAll()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
       同期
@@ -248,12 +298,12 @@ input,textarea,button{font-family:'Noto Sans JP',sans-serif}
         </div>
         <div id="resultBox" style="display:none"></div>
         <div id="ratingArea" style="display:none">
-          <div class="r-hint">難易度を選んでください</div>
+          <div class="r-hint">誤答の理由を選んでください</div>
           <div class="r-grid">
-            <button class="rb rb-again" onclick="rateNext('again')">忘れた<span class="rb-sub">すぐ出題</span></button>
-            <button class="rb rb-hard" onclick="rateNext('hard')">ギリギリ<span class="rb-sub" id="rbH">1日後</span></button>
-            <button class="rb rb-good" onclick="rateNext('good')">凡ミス<span class="rb-sub" id="rbG">3日後</span></button>
-            <button class="rb rb-easy" onclick="rateNext('easy')">簡単<span class="rb-sub" id="rbE">7日後</span></button>
+            <button class="rb rb-again" id="rb1" onclick="rateNext('again')">忘れた<span class="rb-sub">すぐ出題 <kbd class="kb-key">1</kbd></span></button>
+            <button class="rb rb-hard" id="rb2" onclick="rateNext('hard')">ギリギリ<span class="rb-sub">1日後 <kbd class="kb-key">2</kbd></span></button>
+            <button class="rb rb-good" id="rb3" onclick="rateNext('good')">凡ミス<span class="rb-sub">3日後 <kbd class="kb-key">3</kbd></span></button>
+            <button class="rb rb-easy" id="rb4" onclick="rateNext('easy')">惜しい<span class="rb-sub">7日後 <kbd class="kb-key">4</kbd></span></button>
           </div>
           <button class="skip-sec-btn" onclick="skipSection()">
             この題（<span id="skipSecLabel"></span>）の残りをすべてスキップ
@@ -359,6 +409,20 @@ input,textarea,button{font-family:'Noto Sans JP',sans-serif}
 
 </div><!-- /app -->
 
+<!-- 範囲選択モーダル -->
+<div class="modal-overlay hidden" id="rangeModal" onclick="closeRangeModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-title">
+      出題範囲を選択
+      <button onclick="selectAllSections()" style="float:right;font-size:12px;padding:4px 10px;border:.5px solid var(--br2);border-radius:5px;background:transparent;color:var(--t2);cursor:pointer">全選択</button>
+    </div>
+    <div id="sectionCheckList"></div>
+    <button class="btn btn-p" style="width:100%;min-height:48px;margin-top:14px" onclick="applyRange()">
+      この範囲で学習開始
+    </button>
+  </div>
+</div>
+
 <script>
 const EXAM = new Date('2026-08-04');
 const SK = 'taxQuiz_gp';
@@ -368,6 +432,7 @@ const MASTER_DB_ID = '03bbea55feaf4b76af149063a090fb93';
 let S = {
   questions: [],
   activeSections: [],
+  selectedSections: [], // 選択中の出題範囲（空=全題）
   sessions: [],
   numHistory: {},
   queue: [],
@@ -561,7 +626,8 @@ function updateRatingLabels() {
 function buildQueue() {
   const today=new Date().toISOString().slice(0,10);
   const c=getCfg();
-  const eligible=S.questions.filter(q=>S.activeSections.includes(q.section));
+  const targetSecs = S.selectedSections.length > 0 ? S.selectedSections : S.activeSections;
+  const eligible=S.questions.filter(q=>targetSecs.includes(q.section));
   const due=eligible.filter(q=>!q.nextReview||q.nextReview<=today);
   // 題単位でシャッフル
   const shuffled=[...due].sort(()=>Math.random()-0.5);
@@ -585,7 +651,8 @@ function buildQueue() {
 function updateStats() {
   if(!S.questions.length) return;
   const today=new Date().toISOString().slice(0,10);
-  const eligible=S.questions.filter(q=>S.activeSections.includes(q.section));
+  const targetSecs2 = S.selectedSections.length > 0 ? S.selectedSections : S.activeSections;
+  const eligible=S.questions.filter(q=>targetSecs2.includes(q.section));
   document.getElementById('sTotal').textContent=eligible.length;
   document.getElementById('sToday').textContent=eligible.filter(q=>!q.nextReview||q.nextReview<=today).length;
   const r20=S.sessions.slice(-20);
@@ -603,6 +670,15 @@ function showTab(t,el) {
   if(el)el.classList.add('active');
   if(t==='weak')renderWeak();
   if(t==='list')renderList();
+}
+
+function extractHeadingsWithBlink(text, targetNum) {
+  // targetNumの〔①〕を点滅表示に置き換え
+  const processed = text.replace(
+    new RegExp('〔' + targetNum + '〕', 'g'),
+    '<span class="blink-num">〔' + targetNum + '〕</span>'
+  );
+  return extractHeadings(processed);
 }
 
 function extractHeadings(text) {
@@ -656,7 +732,12 @@ function renderQ() {
   document.getElementById('qRank').textContent=q.rank||'';
   document.getElementById('qSec').textContent='問題'+q.section+' '+q.title;
   document.getElementById('qHeading').textContent=q.heading||'';
-  document.getElementById('qText').innerHTML=extractHeadings(q.questionText);
+  document.getElementById('qText').innerHTML=extractHeadingsWithBlink(q.questionText, num);
+  // 点滅箇所付近にスクロール
+  setTimeout(()=>{
+    const blinkEl=document.querySelector('.blink-num');
+    if(blinkEl) blinkEl.scrollIntoView({behavior:'smooth',block:'center'});
+  },150);
   document.getElementById('resultBox').style.display='none';
   document.getElementById('ratingArea').style.display='none';
 
@@ -694,7 +775,7 @@ function submitAnswer() {
   if(S.answered) return;
   const q=S.queue[S.cur]; if(!q) return;
   const ua=document.getElementById('ansInput').value.trim();
-  if(!ua){alert('答えを入力してください');return;}
+  // 空欄は誤答として処理（アラートなし）
   const answers=parseAnswers(q.answer);
   const num=q.currentNum||'①';
   const expected=answers[num]||'';
@@ -724,10 +805,44 @@ function submitAnswer() {
   saveSessions();
   updateStats();
 
-  // 結果にスクロール
-  setTimeout(()=>{
-    rb.scrollIntoView({behavior:'smooth',block:'nearest'});
-  },100);
+  if(isOk){
+    // 正解 → 0.5秒後に自動で次の問題へ
+    rb.innerHTML=`<div class="result r-ok"><div class="score-big">✓ 正解</div></div>`;
+    rb.style.display='block';
+    document.getElementById('fixedBar').classList.remove('show');
+    setTimeout(()=>{ autoNext(); },500);
+  } else {
+    // 誤答 → 理由選択（キーボード対応）
+    rb.style.display='block';
+    document.getElementById('ratingArea').style.display='block';
+    document.getElementById('fixedBar').classList.remove('show');
+    // 正解箇所付近にスクロール
+    setTimeout(()=>{ rb.scrollIntoView({behavior:'smooth',block:'start'}); },100);
+  }
+}
+
+function autoNext() {
+  const q=S.queue[S.cur];
+  if(q){
+    // 正解時はSM-2をeasyで自動更新（間隔を少し伸ばす）
+    const{interval,ef}=calcSM2(q,'easy');
+    const nd=new Date(); nd.setDate(nd.getDate()+interval);
+    const qi=S.questions.findIndex(x=>x.id===q.id);
+    if(qi>=0){
+      S.questions[qi].nextReview=nd.toISOString().slice(0,10);
+      S.questions[qi].interval=interval;
+      S.questions[qi].easeFactor=ef;
+    }
+    saveSessions();
+    writeBackToNotion(q,interval,ef);
+  }
+  S.cur++; S.answered=false;
+  const pg=document.getElementById('page-quiz');
+  if(pg) pg.scrollTop=0;
+  document.getElementById('resultBox').style.display='none';
+  document.getElementById('ratingArea').style.display='none';
+  document.getElementById('ansInput').value='';
+  renderQ();
 }
 
 function calcSM2(q,rating) {
@@ -880,6 +995,58 @@ function showLoading(text) {
 }
 function setLoadTxt(t){document.getElementById('qLoadTxt').textContent=t;}
 function hideLoading(){document.getElementById('qLoading').style.display='none';}
+
+// ===== キーボードショートカット =====
+document.addEventListener('keydown', function(e) {
+  // 入力中は無効
+  if(document.activeElement === document.getElementById('ansInput')) return;
+  if(!S.answered) return;
+  const map = {'1':'again','2':'hard','3':'good','4':'easy'};
+  if(map[e.key]) {
+    e.preventDefault();
+    rateNext(map[e.key]);
+  }
+});
+
+// ===== 範囲選択モーダル =====
+function openRangeModal() {
+  const list = document.getElementById('sectionCheckList');
+  const secs = [...new Set(S.questions.filter(q=>S.activeSections.includes(q.section)).map(q=>q.section))].sort();
+  if(!secs.length){ alert('先に同期してください'); return; }
+  list.innerHTML = secs.map(sec=>{
+    const q = S.questions.find(x=>x.section===sec);
+    const title = q?q.title:'';
+    const checked = S.selectedSections.length===0 || S.selectedSections.includes(sec);
+    return `<label class="section-check">
+      <input type="checkbox" value="${sec}" ${checked?'checked':''}>
+      <span class="section-check-label">問${sec} ${title}</span>
+    </label>`;
+  }).join('');
+  document.getElementById('rangeModal').classList.remove('hidden');
+}
+function closeRangeModal(e) {
+  if(e.target===document.getElementById('rangeModal'))
+    document.getElementById('rangeModal').classList.add('hidden');
+}
+function selectAllSections() {
+  document.querySelectorAll('#sectionCheckList input[type=checkbox]').forEach(cb=>cb.checked=true);
+}
+function applyRange() {
+  const checked=[...document.querySelectorAll('#sectionCheckList input:checked')].map(cb=>cb.value);
+  const allSecs=[...document.querySelectorAll('#sectionCheckList input')].map(cb=>cb.value);
+  S.selectedSections = checked.length===allSecs.length ? [] : checked;
+  document.getElementById('rangeModal').classList.add('hidden');
+  // ヘッダーバッジを更新
+  const btn=document.getElementById('rangeBtn');
+  if(S.selectedSections.length>0){
+    btn.style.color='var(--gd)';btn.style.borderColor='var(--gm)';
+    document.getElementById('hdrSub').textContent=
+      '範囲: '+S.selectedSections.join(', ')+' ('+S.selectedSections.length+'題)';
+  } else {
+    btn.style.color='';btn.style.borderColor='';
+  }
+  buildQueue(); updateStats(); renderQ();
+}
 
 // ===== Init =====
 loadCfg();
