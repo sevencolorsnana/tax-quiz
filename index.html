@@ -113,7 +113,7 @@ input,textarea,button{font-family:'Noto Sans JP',sans-serif}
 
 /* Rating */
 .r-hint{font-size:12px;color:var(--t2);margin:14px 0 8px}
-.r-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.r-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
 .rb{padding:14px 6px;font-size:13px;border-radius:var(--r);cursor:pointer;border:.5px solid var(--br);background:transparent;text-align:center;min-height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-family:inherit;transition:opacity .15s}
 .rb:active{opacity:.7}
 .rb-sub{font-size:10px;color:var(--t3)}
@@ -160,6 +160,25 @@ input,textarea,button{font-family:'Noto Sans JP',sans-serif}
   0%,100%{background:var(--g);color:#fff;}
   50%{background:#fff;color:var(--g);border-color:var(--g);}
 }
+@keyframes correct-flash {
+  0%{transform:scale(1);background:var(--g)}
+  30%{transform:scale(1.08);background:#0ecf8a}
+  60%{transform:scale(0.97)}
+  100%{transform:scale(1);background:var(--g)}
+}
+.correct-anim{animation:correct-flash 0.5s ease-out}
+@keyframes confetti-fall {
+  0%{opacity:1;transform:translateY(-10px) rotate(0deg)}
+  100%{opacity:0;transform:translateY(60px) rotate(360deg)}
+}
+.confetti-wrap{
+  position:fixed;top:40%;left:50%;transform:translateX(-50%);
+  pointer-events:none;z-index:200;display:flex;gap:8px;
+}
+.confetti-dot{
+  width:10px;height:10px;border-radius:50%;
+  animation:confetti-fall 0.6s ease-out forwards;
+}
 .blink-num{
   display:inline-block;padding:1px 6px;border-radius:4px;
   background:var(--g);color:#fff;font-weight:500;
@@ -200,6 +219,19 @@ input,textarea,button{font-family:'Noto Sans JP',sans-serif}
   font-size:11px;padding:2px 7px;border-radius:4px;
   background:var(--am);color:var(--ad);margin-left:6px;
 }
+
+/* Summary */
+.sum-card{background:var(--bg);border:.5px solid var(--br);border-radius:var(--rl2);padding:14px;margin-bottom:10px}
+.sum-title{font-size:14px;font-weight:500;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+.sum-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px}
+.sum-stat{background:var(--bg2);border-radius:var(--r);padding:8px 4px;text-align:center}
+.sum-stat-n{font-size:18px;font-weight:500}
+.sum-stat-l{font-size:10px;color:var(--t3);margin-top:2px}
+.sum-bar-wrap{margin-top:6px}
+.sum-bar-track{background:var(--bg2);border-radius:3px;height:6px;overflow:hidden}
+.sum-bar-fill{height:100%;border-radius:3px;background:var(--g);transition:width .4s}
+.sum-bar-fill.mid{background:var(--ay)}
+.sum-bar-fill.bad{background:var(--rd)}
 
 /* List */
 .qi{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:.5px solid var(--br)}
@@ -259,8 +291,8 @@ input,textarea,button{font-family:'Noto Sans JP',sans-serif}
     <button class="tab active" onclick="showTab('quiz',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>クイズ
     </button>
-    <button class="tab" onclick="showTab('weak',this)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="13" width="4" height="8" rx="1"/><rect x="9" y="9" width="4" height="12" rx="1"/><rect x="15" y="5" width="4" height="16" rx="1"/></svg>弱点
+    <button class="tab" onclick="showTab('summary',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="13" width="4" height="8" rx="1"/><rect x="9" y="9" width="4" height="12" rx="1"/><rect x="15" y="5" width="4" height="16" rx="1"/></svg>分析
     </button>
     <button class="tab" onclick="showTab('list',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>一覧
@@ -300,10 +332,9 @@ input,textarea,button{font-family:'Noto Sans JP',sans-serif}
         <div id="ratingArea" style="display:none">
           <div class="r-hint">誤答の理由を選んでください</div>
           <div class="r-grid">
-            <button class="rb rb-again" id="rb1" onclick="rateNext('again')">忘れた<span class="rb-sub">すぐ出題 <kbd class="kb-key">1</kbd></span></button>
-            <button class="rb rb-hard" id="rb2" onclick="rateNext('hard')">ギリギリ<span class="rb-sub">1日後 <kbd class="kb-key">2</kbd></span></button>
+            <button class="rb rb-again" id="rb1" onclick="rateNext('again')">わからない<span class="rb-sub">すぐ <kbd class="kb-key">1</kbd></span></button>
+            <button class="rb rb-hard" id="rb2" onclick="rateNext('hard')">惜しい<span class="rb-sub">1日後 <kbd class="kb-key">2</kbd></span></button>
             <button class="rb rb-good" id="rb3" onclick="rateNext('good')">凡ミス<span class="rb-sub">3日後 <kbd class="kb-key">3</kbd></span></button>
-            <button class="rb rb-easy" id="rb4" onclick="rateNext('easy')">惜しい<span class="rb-sub">7日後 <kbd class="kb-key">4</kbd></span></button>
           </div>
           <button class="skip-sec-btn" onclick="skipSection()">
             この題（<span id="skipSecLabel"></span>）の残りをすべてスキップ
@@ -312,21 +343,14 @@ input,textarea,button{font-family:'Noto Sans JP',sans-serif}
       </div>
     </div>
 
-    <!-- WEAKNESS -->
-    <div class="page" id="page-weak">
-      <div class="card">
-        <div class="card-label">題別 正答率（5回以上出題）</div>
-        <div id="wkBySec"><div style="color:var(--t3);font-size:13px">データなし</div></div>
-      </div>
+    <!-- SUMMARY -->
+    <div class="page" id="page-summary">
       <div class="card">
         <div class="card-label">直近20回 トレンド</div>
         <div class="trend" id="trendChart"></div>
         <div class="divider-line"><span>古い</span><span>直近</span></div>
       </div>
-      <div class="card">
-        <div class="card-label">弱点問題（正答率50%未満）</div>
-        <div id="wkList"><div style="color:var(--t3);font-size:13px">弱点問題なし</div></div>
-      </div>
+      <div id="summaryList"></div>
     </div>
 
     <!-- LIST -->
@@ -425,16 +449,15 @@ input,textarea,button{font-family:'Noto Sans JP',sans-serif}
 
 <script>
 const EXAM = new Date('2026-08-04');
-const SK = 'taxQuiz_gp';
-const NOTION_DB_ID = 'f5ab3a8d17d34de884fa819eff5d17cb';
-const MASTER_DB_ID = '03bbea55feaf4b76af149063a090fb93';
+const SK = 'taxQuiz_v7';
 
 let S = {
-  questions: [],
-  activeSections: [],
-  selectedSections: [], // 選択中の出題範囲（空=全題）
-  sessions: [],
-  numHistory: {},
+  questions: [],      // Notionから取得した全問題
+  allSections: [],    // 全題番号リスト
+  selectedSections: [],// 選択中の出題範囲（空=全題）
+  sessions: [],       // ローカル採点履歴
+  numHistory: {},     // 穴ごとの正答履歴
+  sectionLog: {},     // 題ごとのサマリ {section: {correct,total,lastDate}}
   queue: [],
   cur: 0,
   answered: false,
@@ -445,70 +468,62 @@ function getCfg() {
   return {
     token: document.getElementById('cfgToken').value.trim(),
     dbId: document.getElementById('cfgDbId').value.trim(),
-    masterId: document.getElementById('cfgMasterId').value.trim(),
     proxy: document.getElementById('cfgProxy').value.trim(),
     hard: parseInt(document.getElementById('cfgH').value)||1,
     good: parseInt(document.getElementById('cfgG').value)||3,
-    easy: parseInt(document.getElementById('cfgE').value)||7,
-    max: parseInt(document.getElementById('cfgMax').value)||14,
     skipPct: parseInt(document.getElementById('cfgSkip').value)||80,
     skipMin: parseInt(document.getElementById('cfgSkipMin').value)||3,
   };
 }
 function saveCfg() {
-  const c = getCfg();
-  localStorage.setItem(SK+'_cfg', JSON.stringify(c));
+  localStorage.setItem(SK+'_cfg', JSON.stringify(getCfg()));
+  updateRatingLabels();
 }
 function loadCfg() {
   try {
     const c = JSON.parse(localStorage.getItem(SK+'_cfg')||'{}');
     if(c.token) document.getElementById('cfgToken').value = c.token;
     if(c.dbId) document.getElementById('cfgDbId').value = c.dbId;
-    if(c.masterId) document.getElementById('cfgMasterId').value = c.masterId;
     if(c.proxy) document.getElementById('cfgProxy').value = c.proxy;
     if(c.hard) document.getElementById('cfgH').value = c.hard;
     if(c.good) document.getElementById('cfgG').value = c.good;
-    if(c.easy) document.getElementById('cfgE').value = c.easy;
-    if(c.max) document.getElementById('cfgMax').value = c.max;
     if(c.skipPct) document.getElementById('cfgSkip').value = c.skipPct;
     if(c.skipMin) document.getElementById('cfgSkipMin').value = c.skipMin;
   } catch(e) {}
 }
-function saveSessions() {
+function saveLocal() {
   try {
     localStorage.setItem(SK+'_sessions', JSON.stringify(S.sessions.slice(-500)));
     localStorage.setItem(SK+'_numhist', JSON.stringify(S.numHistory));
-    localStorage.setItem(SK+'_progress', JSON.stringify(
-      S.questions.filter(q=>q.totalCount>0).map(q=>({
-        id:q.id, nextReview:q.nextReview, interval:q.interval,
-        easeFactor:q.easeFactor, correctCount:q.correctCount, totalCount:q.totalCount
-      }))
-    ));
+    localStorage.setItem(SK+'_seclog', JSON.stringify(S.sectionLog));
+    // 進捗（nextReview等）を保存
+    const prog = S.questions.filter(q=>q.totalCount>0).map(q=>({
+      id:q.id, nextReview:q.nextReview, interval:q.interval,
+      easeFactor:q.easeFactor, correctCount:q.correctCount, totalCount:q.totalCount
+    }));
+    localStorage.setItem(SK+'_progress', JSON.stringify(prog));
   } catch(e) {}
 }
 function loadLocal() {
   try { S.sessions = JSON.parse(localStorage.getItem(SK+'_sessions')||'[]'); } catch(e) {}
   try { S.numHistory = JSON.parse(localStorage.getItem(SK+'_numhist')||'{}'); } catch(e) {}
+  try { S.sectionLog = JSON.parse(localStorage.getItem(SK+'_seclog')||'{}'); } catch(e) {}
 }
 function mergeProgress() {
   try {
     const p = JSON.parse(localStorage.getItem(SK+'_progress')||'[]');
     p.forEach(saved => {
       const q = S.questions.find(x=>x.id===saved.id);
-      if(q) Object.assign(q, {
-        nextReview:saved.nextReview, interval:saved.interval,
-        easeFactor:saved.easeFactor, correctCount:saved.correctCount, totalCount:saved.totalCount
-      });
+      if(q) Object.assign(q, saved);
     });
   } catch(e) {}
 }
 
-// ===== Notion API (プロキシ経由 or 直接) =====
+// ===== Notion =====
 async function notionFetch(path, method, body) {
   const c = getCfg();
-  const base = c.proxy ? c.proxy.replace(/\/$/, '') + '/proxy' : 'https://api.notion.com';
-  const url = base + path;
-  const resp = await fetch(url, {
+  const base = c.proxy ? c.proxy.replace(/\/$/,'') + '/proxy' : 'https://api.notion.com';
+  const resp = await fetch(base + path, {
     method: method||'GET',
     headers: {
       'Authorization': 'Bearer ' + c.token,
@@ -533,26 +548,15 @@ async function queryAll(dbId) {
   }
   return results;
 }
-async function updatePage(pageId, props) {
-  return notionFetch('/v1/pages/'+pageId, 'PATCH', {properties: props});
-}
 
-// ===== Sync =====
+// ===== Sync: 全問題を読み込む（学習範囲フィルタなし）=====
 async function syncAll() {
   const c = getCfg();
   if(!c.token) { alert('設定タブでNotionトークンを入力してください'); return; }
   const btn = document.getElementById('syncBtn');
   btn.classList.add('loading');
-  showLoading('学習範囲を確認中...');
+  showLoading('問題を取得中...');
   try {
-    // 理論マスタから既習フラグONの題を取得
-    const masterPages = await queryAll(c.masterId);
-    S.activeSections = masterPages
-      .filter(p => p.properties['既習フラグ']?.checkbox || ['導入中','復習中','定着'].includes(p.properties['ステータス']?.select?.name))
-      .map(p => p.properties['題番号']?.title?.[0]?.plain_text)
-      .filter(Boolean);
-
-    setLoadTxt('問題を取得中...');
     const allPages = await queryAll(c.dbId);
     S.questions = allPages.map(p => {
       const pr = p.properties;
@@ -575,7 +579,12 @@ async function syncAll() {
         totalCount: pr['出題回数']?.number || 0,
         level: lvM ? parseInt(lvM[1]) : 1,
       };
-    }).filter(q => q.id);
+    }).filter(q => q.id && q.section);
+
+    // 全題番号リスト（重複なし・ソート）
+    S.allSections = [...new Set(S.questions.map(q=>q.section))].sort();
+    // selectedSectionsが空なら全題を選択状態にする
+    if(S.selectedSections.length === 0) S.selectedSections = [...S.allSections];
 
     mergeProgress();
     buildQueue();
@@ -584,29 +593,33 @@ async function syncAll() {
     renderQ();
 
     const today = new Date().toISOString().slice(0,10);
-    const due = S.questions.filter(q=>S.activeSections.includes(q.section)&&(!q.nextReview||q.nextReview<=today)).length;
+    const due = getEligible().filter(q=>!q.nextReview||q.nextReview<=today).length;
     document.getElementById('hdrSub').textContent =
       new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})+'同期 / '+
-      S.activeSections.length+'題 / 今日'+due+'問';
+      S.questions.length+'問 / 今日'+due+'問';
     document.getElementById('cfgResult').textContent = '✓ 接続成功 — '+S.questions.length+'問取得';
     document.getElementById('cfgResult').style.color = 'var(--gd)';
-
   } catch(e) {
     hideLoading();
     document.getElementById('hdrSub').textContent = '同期失敗: '+e.message;
     document.getElementById('cfgResult').textContent = '✗ エラー: '+e.message;
     document.getElementById('cfgResult').style.color = 'var(--rd)';
-    alert('同期エラー: '+e.message+'\n\nNotionトークンとプロキシURLを確認してください。');
+    alert('同期エラー: '+e.message);
   }
   btn.classList.remove('loading');
+}
+
+// 選択中の題の問題を返す
+function getEligible() {
+  return S.questions.filter(q => S.selectedSections.includes(q.section));
 }
 
 // ===== Exam =====
 function daysLeft() { return Math.ceil((EXAM-new Date())/86400000); }
 function intervalCap() {
-  const d=daysLeft(), c=getCfg();
+  const d=daysLeft();
   if(d<=7)return 1; if(d<=14)return 3; if(d<=30)return 7;
-  return c.max;
+  return getCfg().good * 3;
 }
 function updateCountdown() {
   const d=daysLeft(), cap=intervalCap();
@@ -619,17 +632,14 @@ function updateRatingLabels() {
   const c=getCfg(), cap=intervalCap();
   document.getElementById('rbH').textContent=Math.min(c.hard,cap)+'日後';
   document.getElementById('rbG').textContent=Math.min(c.good,cap)+'日後';
-  document.getElementById('rbE').textContent=Math.min(c.easy,cap)+'日後';
 }
 
 // ===== Queue =====
 function buildQueue() {
   const today=new Date().toISOString().slice(0,10);
   const c=getCfg();
-  const targetSecs = S.selectedSections.length > 0 ? S.selectedSections : S.activeSections;
-  const eligible=S.questions.filter(q=>targetSecs.includes(q.section));
+  const eligible=getEligible();
   const due=eligible.filter(q=>!q.nextReview||q.nextReview<=today);
-  // 題単位でシャッフル
   const shuffled=[...due].sort(()=>Math.random()-0.5);
   const numRe=/[\u2460-\u2473]/;
   const expanded=[];
@@ -638,7 +648,6 @@ function buildQueue() {
     targets.forEach(num=>{
       const key=q.id+'__'+num;
       const hist=S.numHistory[key]||{correct:0,total:0};
-      // 正答率が高い穴はスキップ
       if(hist.total>=c.skipMin && hist.correct/hist.total>=c.skipPct/100) return;
       expanded.push(Object.assign({},q,{currentNum:num,_numKey:key}));
     });
@@ -651,10 +660,10 @@ function buildQueue() {
 function updateStats() {
   if(!S.questions.length) return;
   const today=new Date().toISOString().slice(0,10);
-  const targetSecs2 = S.selectedSections.length > 0 ? S.selectedSections : S.activeSections;
-  const eligible=S.questions.filter(q=>targetSecs2.includes(q.section));
+  const eligible=getEligible();
   document.getElementById('sTotal').textContent=eligible.length;
-  document.getElementById('sToday').textContent=eligible.filter(q=>!q.nextReview||q.nextReview<=today).length;
+  document.getElementById('sToday').textContent=
+    eligible.filter(q=>!q.nextReview||q.nextReview<=today).length;
   const r20=S.sessions.slice(-20);
   const acc=r20.length?Math.round(r20.filter(s=>s.correct).length/r20.length*100):null;
   document.getElementById('sAcc').textContent=acc!==null?acc+'%':'—';
@@ -668,21 +677,18 @@ function showTab(t,el) {
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+t).classList.add('active');
   if(el)el.classList.add('active');
-  if(t==='weak')renderWeak();
-  if(t==='list')renderList();
+  if(t==='summary') renderSummary();
+  if(t==='list') renderList();
 }
 
 function extractHeadingsWithBlink(text, targetNum) {
-  // targetNumの〔①〕を点滅表示に置き換え
-  const processed = text.replace(
-    new RegExp('〔' + targetNum + '〕', 'g'),
-    '<span class="blink-num">〔' + targetNum + '〕</span>'
-  );
+  // 問題文中の〔targetNum〕を点滅タグに置換
+  const blinkTag = '<span class="blink-num">〔'+targetNum+'〕</span>';
+  const processed = text.split('〔'+targetNum+'〕').join(blinkTag);
   return extractHeadings(processed);
 }
 
 function extractHeadings(text) {
-  // 〔〕見出し行 + そのセクション全文を表示（次の見出しまですべて）
   const lines = text.split('\n');
   const headRe = /^\u3014[^\u3015]+\u3015/;
   const result = [];
@@ -690,25 +696,25 @@ function extractHeadings(text) {
   while (i < lines.length) {
     const trimmed = lines[i].trim();
     if (headRe.test(trimmed)) {
-      result.push('<div style="color:var(--g);font-size:12px;font-weight:500;margin-top:10px;margin-bottom:2px">' + trimmed + '</div>');
+      result.push('<div style="color:var(--g);font-size:12px;font-weight:500;margin-top:10px;margin-bottom:2px">'+trimmed+'</div>');
       i++;
-      const bodyLines = [];
-      while (i < lines.length && !headRe.test(lines[i].trim())) {
-        const bl = lines[i].trim();
-        if (bl) bodyLines.push(bl);
+      let bodyLines=[], count=0;
+      while(i<lines.length && !headRe.test(lines[i].trim()) && count<6){
+        const bl=lines[i].trim();
+        if(bl){bodyLines.push(bl);count++;}
         i++;
       }
-      if (bodyLines.length) {
-        result.push('<div style="font-size:13px;color:var(--t);line-height:1.9;margin-bottom:4px">' + bodyLines.join('<br>') + '</div>');
+      if(bodyLines.length){
+        result.push('<div style="font-size:13px;color:var(--t);line-height:1.8;margin-bottom:4px">'+bodyLines.join('<br>')+'</div>');
       }
     } else {
+      if(trimmed) result.push('<div style="font-size:13px;color:var(--t);line-height:1.8">'+trimmed+'</div>');
       i++;
     }
   }
-  if (!result.length) return text.replace(/\n/g, '<br>');
+  if(!result.length) return text.replace(/\n/g,'<br>');
   return result.join('');
 }
-
 
 function renderQ() {
   const q=S.queue[S.cur];
@@ -732,32 +738,32 @@ function renderQ() {
   document.getElementById('qRank').textContent=q.rank||'';
   document.getElementById('qSec').textContent='問題'+q.section+' '+q.title;
   document.getElementById('qHeading').textContent=q.heading||'';
+
   document.getElementById('resultBox').style.display='none';
   document.getElementById('ratingArea').style.display='none';
 
   const num=q.currentNum||'①';
   document.getElementById('qText').innerHTML=extractHeadingsWithBlink(q.questionText, num);
+  document.getElementById('fixedTarget').textContent=num+' を答えなさい';
+  document.getElementById('skipSecLabel').textContent='問題'+q.section;
+  document.getElementById('ansInput').value='';
+
   // 点滅箇所付近にスクロール
   setTimeout(()=>{
     const blinkEl=document.querySelector('.blink-num');
     if(blinkEl) blinkEl.scrollIntoView({behavior:'smooth',block:'center'});
+    document.getElementById('ansInput').focus();
   },150);
-  document.getElementById('fixedTarget').textContent=num+' を答えなさい';
-  document.getElementById('skipSecLabel').textContent='問題'+q.section;
-  document.getElementById('ansInput').value='';
-  document.getElementById('ansInput').focus();
   S.answered=false;
 }
 
 function parseAnswers(str) {
   const map={};
   const re=/[\u2460-\u2473][^\u2460-\u2473]+/g;
-  let m;
-  const re2=/^([\u2460-\u2473])([\s\S]+)$/;
   const matches=str.match(re)||[];
   matches.forEach(function(chunk){
-    const m2=chunk.match(re2);
-    if(m2) map[m2[1]]=m2[2].trim();
+    const m=chunk.match(/^([\u2460-\u2473])([\s\S]+)$/);
+    if(m) map[m[1]]=m[2].trim();
   });
   return map;
 }
@@ -765,84 +771,80 @@ function parseAnswers(str) {
 function matchAnswer(ua, expected) {
   if(!expected) return false;
   if(ua.includes(expected)) return true;
-  // 「等」「等々」を除いても一致するか
   const withoutEtc=expected.replace(/等々?/g,'');
   if(withoutEtc.length>0&&ua.includes(withoutEtc)) return true;
   return false;
+}
+
+function showCorrectAnim() {
+  // 画面中央にコンフェッティ
+  const colors=['#1D9E75','#5DCAA5','#EF9F27','#F09595','#85B7EB'];
+  const wrap=document.createElement('div');
+  wrap.className='confetti-wrap';
+  colors.forEach((col,i)=>{
+    const dot=document.createElement('div');
+    dot.className='confetti-dot';
+    dot.style.background=col;
+    dot.style.animationDelay=(i*0.06)+'s';
+    wrap.appendChild(dot);
+  });
+  document.body.appendChild(wrap);
+  // 進捗バーを正解色でアニメ
+  const pb=document.getElementById('progBar');
+  pb.classList.add('correct-anim');
+  setTimeout(()=>{
+    pb.classList.remove('correct-anim');
+    wrap.remove();
+  },700);
 }
 
 function submitAnswer() {
   if(S.answered) return;
   const q=S.queue[S.cur]; if(!q) return;
   const ua=document.getElementById('ansInput').value.trim();
-  // 空欄は誤答として処理（アラートなし）
+  // 空欄=わからなかったとして誤答処理
   const answers=parseAnswers(q.answer);
   const num=q.currentNum||'①';
   const expected=answers[num]||'';
-  const isOk=matchAnswer(ua,expected);
+  const isOk=ua.length>0 && matchAnswer(ua,expected);
 
-  const rb=document.getElementById('resultBox');
-  let html=`<div class="result ${isOk?'r-ok':'r-ng'}"><div class="score-big">${isOk?'✓ 正解':'✗ 不正解'}</div>`;
-  if(!isOk&&expected) html+=`<div class="ans-note"><strong>不足・誤り</strong>${num} ${expected}</div>`;
-  html+=`<div class="ans-note"><strong>正解</strong>${num} ${expected||'（正解データなし）'}</div></div>`;
-  rb.innerHTML=html; rb.style.display='block';
-  document.getElementById('ratingArea').style.display='block';
-  document.getElementById('fixedBar').classList.remove('show');
-  S.answered=true;
-
-  // 採点履歴
+  // 採点記録
   S.sessions.push({qId:q.id,section:q.section,date:new Date().toISOString().slice(0,10),correct:isOk});
   const nk=q._numKey||q.id+'__'+num;
   if(!S.numHistory[nk]) S.numHistory[nk]={correct:0,total:0};
   S.numHistory[nk].total++;
   if(isOk) S.numHistory[nk].correct++;
-
+  // 題サマリ更新
+  if(!S.sectionLog[q.section]) S.sectionLog[q.section]={correct:0,total:0,lastDate:''};
+  S.sectionLog[q.section].total++;
+  if(isOk) S.sectionLog[q.section].correct++;
+  S.sectionLog[q.section].lastDate=new Date().toISOString().slice(0,10);
   const qi=S.questions.findIndex(x=>x.id===q.id);
   if(qi>=0){
     S.questions[qi].correctCount=(S.questions[qi].correctCount||0)+(isOk?1:0);
     S.questions[qi].totalCount=(S.questions[qi].totalCount||0)+1;
   }
-  saveSessions();
+  saveLocal();
   updateStats();
 
+  const rb=document.getElementById('resultBox');
   if(isOk){
-    // 正解 → 0.5秒後に自動で次の問題へ
-    rb.innerHTML=`<div class="result r-ok"><div class="score-big">✓ 正解</div></div>`;
+    showCorrectAnim();
+    rb.innerHTML='<div class="result r-ok"><div class="score-big">✓ 正解</div><div style="font-size:13px;margin-top:4px">'+num+' '+expected+'</div></div>';
     rb.style.display='block';
     document.getElementById('fixedBar').classList.remove('show');
-    setTimeout(()=>{ autoNext(); },500);
+    S.answered=true;
+    setTimeout(()=>autoNext('easy'), 600);
   } else {
-    // 誤答 → 理由選択（キーボード対応）
-    rb.style.display='block';
+    let html='<div class="result r-ng"><div class="score-big">✗ 不正解</div>';
+    if(!ua) html+='<div style="font-size:13px;margin-top:4px;opacity:.8">（空欄 → わからなかった扱い）</div>';
+    html+='<div class="ans-note"><strong>正解</strong>'+num+' '+(expected||'正解データなし')+'</div></div>';
+    rb.innerHTML=html; rb.style.display='block';
     document.getElementById('ratingArea').style.display='block';
     document.getElementById('fixedBar').classList.remove('show');
-    // 正解箇所付近にスクロール
-    setTimeout(()=>{ rb.scrollIntoView({behavior:'smooth',block:'start'}); },100);
+    S.answered=true;
+    setTimeout(()=>rb.scrollIntoView({behavior:'smooth',block:'start'}),100);
   }
-}
-
-function autoNext() {
-  const q=S.queue[S.cur];
-  if(q){
-    // 正解時はSM-2をeasyで自動更新（間隔を少し伸ばす）
-    const{interval,ef}=calcSM2(q,'easy');
-    const nd=new Date(); nd.setDate(nd.getDate()+interval);
-    const qi=S.questions.findIndex(x=>x.id===q.id);
-    if(qi>=0){
-      S.questions[qi].nextReview=nd.toISOString().slice(0,10);
-      S.questions[qi].interval=interval;
-      S.questions[qi].easeFactor=ef;
-    }
-    saveSessions();
-    writeBackToNotion(q,interval,ef);
-  }
-  S.cur++; S.answered=false;
-  const pg=document.getElementById('page-quiz');
-  if(pg) pg.scrollTop=0;
-  document.getElementById('resultBox').style.display='none';
-  document.getElementById('ratingArea').style.display='none';
-  document.getElementById('ansInput').value='';
-  renderQ();
 }
 
 function calcSM2(q,rating) {
@@ -851,48 +853,62 @@ function calcSM2(q,rating) {
   if(rating==='again'){i=0;}
   else if(rating==='hard'){ef=Math.max(1.3,ef-0.15);i=Math.max(1,Math.round(i*1.2));}
   else if(rating==='good'){i=i<=1?c.good:Math.round(i*ef);}
-  else if(rating==='easy'){ef=Math.min(3.0,ef+0.15);i=i<=1?c.easy:Math.round(i*ef*1.3);}
+  else if(rating==='easy'){ef=Math.min(3.0,ef+0.15);i=i<=1?c.good*2:Math.round(i*ef*1.3);}
   return{interval:Math.max(1,Math.min(i,cap)),ef:Math.min(3.0,Math.max(1.3,ef))};
 }
 
 async function writeBackToNotion(q, interval, ef) {
   try {
-    const c=getCfg();
-    if(!c.token) return;
+    const c=getCfg(); if(!c.token) return;
     const nd=new Date(); nd.setDate(nd.getDate()+interval);
-    const isCorrect=S.sessions.slice(-1)[0]?.correct?1:0;
-    await updatePage(q.pageId, {
+    const qi=S.questions.findIndex(x=>x.id===q.id);
+    const curQ=qi>=0?S.questions[qi]:q;
+    await notionFetch('/v1/pages/'+q.pageId,'PATCH',{properties:{
       '次回出題日':{date:{start:nd.toISOString().slice(0,10)}},
       '間隔_日数':{number:interval},
       '難易度係数':{number:ef},
-      '正答回数':{number:(q.correctCount||0)},
-      '出題回数':{number:(q.totalCount||0)},
-    });
-  } catch(e){ console.warn('Notion書き戻し失敗:', e.message); }
+      '正答回数':{number:curQ.correctCount||0},
+      '出題回数':{number:curQ.totalCount||0},
+    }});
+    if(qi>=0){S.questions[qi].nextReview=nd.toISOString().slice(0,10);S.questions[qi].interval=interval;S.questions[qi].easeFactor=ef;}
+  } catch(e){ console.warn('Notion書き戻し失敗:',e.message); }
+}
+
+function autoNext(rating) {
+  const q=S.queue[S.cur];
+  if(q){
+    const{interval,ef}=calcSM2(q,rating);
+    const qi=S.questions.findIndex(x=>x.id===q.id);
+    if(qi>=0){const nd=new Date();nd.setDate(nd.getDate()+interval);S.questions[qi].nextReview=nd.toISOString().slice(0,10);S.questions[qi].interval=interval;S.questions[qi].easeFactor=ef;}
+    saveLocal();
+    writeBackToNotion(q,interval,ef);
+  }
+  nextQ();
 }
 
 function rateNext(rating) {
   const q=S.queue[S.cur];
   if(q){
     const{interval,ef}=calcSM2(q,rating);
+    const qi=S.questions.findIndex(x=>x.id===q.id);
     if(rating==='again'){
       S.queue.push(q);
     } else {
-      const nd=new Date(); nd.setDate(nd.getDate()+interval);
-      const qi=S.questions.findIndex(x=>x.id===q.id);
-      if(qi>=0){
-        S.questions[qi].nextReview=nd.toISOString().slice(0,10);
-        S.questions[qi].interval=interval;
-        S.questions[qi].easeFactor=ef;
-      }
-      saveSessions();
-      writeBackToNotion(q,interval,ef); // 非同期バックグラウンド
+      if(qi>=0){const nd=new Date();nd.setDate(nd.getDate()+interval);S.questions[qi].nextReview=nd.toISOString().slice(0,10);S.questions[qi].interval=interval;S.questions[qi].easeFactor=ef;}
+      saveLocal();
+      writeBackToNotion(q,interval,ef);
     }
   }
+  nextQ();
+}
+
+function nextQ() {
   S.cur++; S.answered=false;
+  document.getElementById('resultBox').style.display='none';
+  document.getElementById('ratingArea').style.display='none';
+  document.getElementById('ansInput').value='';
   const pg=document.getElementById('page-quiz');
   if(pg) pg.scrollTop=0;
-  document.getElementById('ansInput').value='';
   renderQ();
 }
 
@@ -907,9 +923,9 @@ function showHint() {
 
 function skipQ() {
   S.cur++; S.answered=false;
+  document.getElementById('ansInput').value='';
   const pg=document.getElementById('page-quiz');
   if(pg) pg.scrollTop=0;
-  document.getElementById('ansInput').value='';
   renderQ();
 }
 
@@ -917,47 +933,48 @@ function skipSection() {
   const q=S.queue[S.cur]; if(!q) return;
   const sec=q.section;
   S.queue=S.queue.filter((item,i)=>i<=S.cur||item.section!==sec);
-  S.cur++; S.answered=false;
-  const pg=document.getElementById('page-quiz');
-  if(pg) pg.scrollTop=0;
-  document.getElementById('ansInput').value='';
-  renderQ();
+  nextQ();
 }
 
-// ===== Weakness =====
-function renderWeak() {
-  const eligible=S.questions.filter(q=>S.activeSections.includes(q.section));
-  const bySec={};
-  eligible.forEach(q=>{
-    if(!bySec[q.section])bySec[q.section]={title:q.title,correct:0,total:0};
-    bySec[q.section].correct+=q.correctCount||0;
-    bySec[q.section].total+=q.totalCount||0;
-  });
-  const secs=Object.entries(bySec).filter(([,v])=>v.total>=5)
-    .map(([k,v])=>({section:k,title:v.title,rate:Math.round(v.correct/v.total*100),total:v.total}))
-    .sort((a,b)=>a.rate-b.rate);
-  document.getElementById('wkBySec').innerHTML=secs.length
-    ?secs.map(s=>{const cl=s.rate<50?'bad':s.rate<75?'mid':'';
-      return`<div class="wb"><div class="wb-hd"><span class="wb-title">問${s.section} ${s.title}</span><span class="wb-pct">${s.rate}% (${s.total}回)</span></div><div class="wb-track"><div class="wb-fill ${cl}" style="width:${s.rate}%"></div></div></div>`;
-    }).join('')
-    :'<div style="color:var(--t3);font-size:13px">5回以上出題の問題がありません</div>';
-
+// ===== Summary =====
+function renderSummary() {
+  // 直近20回トレンド
   const r20=S.sessions.slice(-20);
   document.getElementById('trendChart').innerHTML=r20.length>=3
-    ?r20.map(s=>`<div class="trend-bar" style="height:${s.correct?60:18}px;background:${s.correct?'var(--g)':'var(--rb)'}"></div>`).join('')
-    :'<div style="color:var(--t3);font-size:12px;padding:8px">データ不足</div>';
+    ?r20.map(s=>'<div class="trend-bar" style="height:'+(s.correct?60:18)+'px;background:'+(s.correct?'var(--g)':'var(--rb)')+'"></div>').join('')
+    :'<div style="color:var(--t3);font-size:12px;padding:8px">データ不足（20回以上で表示）</div>';
 
-  const weak=eligible.filter(q=>q.totalCount>=3&&q.correctCount/q.totalCount<0.5)
-    .sort((a,b)=>(a.correctCount/Math.max(a.totalCount,1))-(b.correctCount/Math.max(b.totalCount,1)));
-  document.getElementById('wkList').innerHTML=weak.length
-    ?weak.map(q=>`<div class="qi"><div class="qi-l"><div class="qi-title">問${q.section} ${q.heading||q.title}</div><div class="qi-sub">${q.targetNums} ${q.questionText.slice(0,28)}...</div></div><div class="qi-r"><span style="font-size:13px;color:var(--rd);font-weight:500">${Math.round(q.correctCount/q.totalCount*100)}%</span></div></div>`).join('')
-    :'<div style="color:var(--t3);font-size:13px">弱点問題なし</div>';
+  // 題ごとサマリ
+  const sections=S.allSections.length?S.allSections:[...new Set(S.questions.map(q=>q.section))].sort();
+  if(!sections.length){document.getElementById('summaryList').innerHTML='<div style="color:var(--t3);font-size:13px">同期してください</div>';return;}
+  let html='';
+  sections.forEach(sec=>{
+    const log=S.sectionLog[sec]||{correct:0,total:0,lastDate:''};
+    const qs=S.questions.filter(q=>q.section===sec);
+    const title=qs[0]?.title||'';
+    const rate=log.total>0?Math.round(log.correct/log.total*100):null;
+    const barClass=rate===null?'':rate<50?'bad':rate<75?'mid':'';
+    const isSelected=S.selectedSections.includes(sec);
+    html+=`<div class="sum-card" style="${isSelected?'':'opacity:.5'}">
+      <div class="sum-title">
+        <span>問${sec} ${title}</span>
+        <span style="font-size:11px;color:var(--t3)">${log.lastDate||'未学習'}</span>
+      </div>
+      <div class="sum-stats">
+        <div class="sum-stat"><div class="sum-stat-n">${log.total}</div><div class="sum-stat-l">出題回数</div></div>
+        <div class="sum-stat"><div class="sum-stat-n">${log.correct}</div><div class="sum-stat-l">正解回数</div></div>
+        <div class="sum-stat"><div class="sum-stat-n" style="color:${rate===null?'var(--t3)':rate<50?'var(--rd)':rate<75?'var(--ay)':'var(--g)'}">${rate!==null?rate+'%':'—'}</div><div class="sum-stat-l">正答率</div></div>
+      </div>
+      ${log.total>0?`<div class="sum-bar-wrap"><div class="sum-bar-track"><div class="sum-bar-fill ${barClass}" style="width:${rate}%"></div></div></div>`:''}
+    </div>`;
+  });
+  document.getElementById('summaryList').innerHTML=html;
 }
 
 // ===== List =====
 function renderList() {
   const today=new Date().toISOString().slice(0,10);
-  const eligible=S.questions.filter(q=>S.activeSections.includes(q.section));
+  const eligible=getEligible();
   const cnts=Array.from({length:7},(_,i)=>{
     const d=new Date();d.setDate(d.getDate()+i);const ds=d.toISOString().slice(0,10);
     return eligible.filter(q=>i===0?(!q.nextReview||q.nextReview<=ds):q.nextReview===ds).length;
@@ -977,49 +994,21 @@ function renderList() {
     }).join('');
 }
 
-function clearLocal() {
-  if(!confirm('ローカル履歴をリセットしますか？Notion側のデータは消えません。')) return;
-  S.sessions=[];S.numHistory={};
-  localStorage.removeItem(SK+'_sessions');
-  localStorage.removeItem(SK+'_numhist');
-  localStorage.removeItem(SK+'_progress');
-  updateStats(); alert('リセットしました');
-}
-
-function showLoading(text) {
-  document.getElementById('qLoadTxt').textContent=text||'読み込み中...';
-  document.getElementById('qLoading').style.display='flex';
-  document.getElementById('qEmpty').style.display='none';
-  document.getElementById('qContent').style.display='none';
-  document.getElementById('fixedBar').classList.remove('show');
-}
-function setLoadTxt(t){document.getElementById('qLoadTxt').textContent=t;}
-function hideLoading(){document.getElementById('qLoading').style.display='none';}
-
-// ===== キーボードショートカット =====
-document.addEventListener('keydown', function(e) {
-  // 入力中は無効
-  if(document.activeElement === document.getElementById('ansInput')) return;
-  if(!S.answered) return;
-  const map = {'1':'again','2':'hard','3':'good','4':'easy'};
-  if(map[e.key]) {
-    e.preventDefault();
-    rateNext(map[e.key]);
-  }
-});
-
 // ===== 範囲選択モーダル =====
 function openRangeModal() {
-  const list = document.getElementById('sectionCheckList');
-  const secs = [...new Set(S.questions.filter(q=>S.activeSections.includes(q.section)).map(q=>q.section))].sort();
-  if(!secs.length){ alert('先に同期してください'); return; }
-  list.innerHTML = secs.map(sec=>{
-    const q = S.questions.find(x=>x.section===sec);
-    const title = q?q.title:'';
-    const checked = S.selectedSections.length===0 || S.selectedSections.includes(sec);
-    return `<label class="section-check">
+  const list=document.getElementById('sectionCheckList');
+  const secs=S.allSections.length?S.allSections:[...new Set(S.questions.map(q=>q.section))].sort();
+  if(!secs.length){alert('先に同期してください');return;}
+  list.innerHTML=secs.map(sec=>{
+    const q=S.questions.find(x=>x.section===sec);
+    const title=q?q.title:'';
+    const log=S.sectionLog[sec]||{correct:0,total:0};
+    const rate=log.total>0?Math.round(log.correct/log.total*100)+'%':'未';
+    const checked=S.selectedSections.includes(sec);
+    return`<label class="section-check">
       <input type="checkbox" value="${sec}" ${checked?'checked':''}>
       <span class="section-check-label">問${sec} ${title}</span>
+      <span style="font-size:11px;color:var(--t3)">${rate}</span>
     </label>`;
   }).join('');
   document.getElementById('rangeModal').classList.remove('hidden');
@@ -1033,20 +1022,41 @@ function selectAllSections() {
 }
 function applyRange() {
   const checked=[...document.querySelectorAll('#sectionCheckList input:checked')].map(cb=>cb.value);
-  const allSecs=[...document.querySelectorAll('#sectionCheckList input')].map(cb=>cb.value);
-  S.selectedSections = checked.length===allSecs.length ? [] : checked;
+  S.selectedSections=checked.length?checked:[...S.allSections];
   document.getElementById('rangeModal').classList.add('hidden');
-  // ヘッダーバッジを更新
   const btn=document.getElementById('rangeBtn');
-  if(S.selectedSections.length>0){
-    btn.style.color='var(--gd)';btn.style.borderColor='var(--gm)';
-    document.getElementById('hdrSub').textContent=
-      '範囲: '+S.selectedSections.join(', ')+' ('+S.selectedSections.length+'題)';
-  } else {
-    btn.style.color='';btn.style.borderColor='';
-  }
+  const isFiltered=S.selectedSections.length<S.allSections.length;
+  btn.style.color=isFiltered?'var(--gd)':'';
+  btn.style.borderColor=isFiltered?'var(--gm)':'';
+  document.getElementById('hdrSub').textContent=
+    isFiltered?'範囲: '+S.selectedSections.length+'題選択中':document.getElementById('hdrSub').textContent;
   buildQueue(); updateStats(); renderQ();
 }
+
+// ===== キーボードショートカット =====
+document.addEventListener('keydown', function(e) {
+  if(document.activeElement===document.getElementById('ansInput')) return;
+  if(!S.answered) return;
+  const map={'1':'again','2':'hard','3':'good'};
+  if(map[e.key]){e.preventDefault();rateNext(map[e.key]);}
+});
+
+function clearLocal() {
+  if(!confirm('ローカル履歴をリセットしますか？')) return;
+  S.sessions=[];S.numHistory={};S.sectionLog={};
+  ['_sessions','_numhist','_seclog','_progress'].forEach(k=>localStorage.removeItem(SK+k));
+  updateStats(); alert('リセットしました');
+}
+
+function showLoading(text) {
+  document.getElementById('qLoadTxt').textContent=text||'読み込み中...';
+  document.getElementById('qLoading').style.display='flex';
+  document.getElementById('qEmpty').style.display='none';
+  document.getElementById('qContent').style.display='none';
+  document.getElementById('fixedBar').classList.remove('show');
+}
+function setLoadTxt(t){document.getElementById('qLoadTxt').textContent=t;}
+function hideLoading(){document.getElementById('qLoading').style.display='none';}
 
 // ===== Init =====
 loadCfg();
@@ -1054,8 +1064,6 @@ loadLocal();
 updateCountdown();
 updateRatingLabels();
 updateStats();
-
-// トークンがあれば自動同期
 setTimeout(()=>{
   if(getCfg().token) syncAll();
   else document.getElementById('qEmpty').style.display='block';
