@@ -843,36 +843,13 @@ function extractHeadingsWithBlink(text, targetNum) {
 }
 
 function extractHeadings(text) {
+  // 全行を黒で表示（見出し・本文の色分けなし）
   const lines = text.split('\n');
-  // 〔数字〕または〔漢字/記号〕で始まる行のみ見出し（blink-numタグが混入していても除外）
-  const headRe = /^〔[^〕]+〕/;
   const result = [];
-  let i = 0;
-  while (i < lines.length) {
-    const trimmed = lines[i].trim();
-    // HTMLタグを除いた純テキストで見出し判定
-    const plainText = trimmed.replace(/<[^>]+>/g,'');
-    if (headRe.test(plainText) && !trimmed.includes('blink-num')) {
-      // 見出し行：緑色
-      result.push('<div style="color:var(--g);font-size:12px;font-weight:500;margin-top:10px;margin-bottom:2px">'+trimmed+'</div>');
-      i++;
-      let bodyLines=[], count=0;
-      while(i<lines.length && count<8){
-        const bl=lines[i].trim();
-        const blPlain=bl.replace(/<[^>]+>/g,'');
-        if(headRe.test(blPlain) && !bl.includes('blink-num')) break;
-        if(bl){bodyLines.push(bl);count++;}
-        i++;
-      }
-      if(bodyLines.length){
-        result.push('<div style="font-size:13px;color:var(--t);line-height:1.8;margin-bottom:4px">'+bodyLines.join('<br>')+'</div>');
-      }
-    } else {
-      // 見出し以外：黒（緑にしない）
-      if(trimmed) result.push('<div style="font-size:13px;color:var(--t);line-height:1.8;margin-bottom:2px">'+trimmed+'</div>');
-      i++;
-    }
-  }
+  lines.forEach(line=>{
+    const trimmed = line.trim();
+    if(trimmed) result.push('<div style="font-size:13px;color:var(--t);line-height:1.8;margin-bottom:2px">'+trimmed+'</div>');
+  });
   if(!result.length) return text.replace(/\n/g,'<br>');
   return result.join('');
 }
