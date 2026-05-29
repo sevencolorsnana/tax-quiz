@@ -463,19 +463,7 @@ function renderQText(text, otherAnswers){
       processed = processed.replace(new RegExp(escaped,'g'),'〔●〕');
     });
   }
-  // 途中改行を結合: 文末が句読点・閉じ括弧でない場合は次行と結合
-  processed = processed.split("\n").reduce(function(acc,line){
-    if(acc.length===0){return [line];}
-    var prev=acc[acc.length-1];
-    var endsWithBreak=/[。、）」』\u3002\u3001\uff09\u300d\u300f]$/.test(prev);
-    var startsWithHead=/^[〔（「『\uff08\u300c\u300e]/.test(line);
-    if(!endsWithBreak&&!startsWithHead&&prev.length>0&&line.length>0){
-      acc[acc.length-1]=prev+line;
-    } else {
-      acc.push(line);
-    }
-    return acc;
-  },[]).join("\n")
+
   return processed
     .replace(/\n/g,'<br>')
     .replace(/〔_〕/g,'<span class="blink-blank">〔　〕</span>');
