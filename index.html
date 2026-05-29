@@ -287,7 +287,10 @@ input,textarea,button{font-family:'Noto Sans JP',sans-serif}
         </div>
         <div id="resultBox" style="display:none"></div>
         <div id="editBtnArea" style="display:none;margin-bottom:8px">
-          <button onclick="openEditModal()" class="btn" style="width:100%;font-size:12px;color:var(--t2)">✏️ 問題文・回答を修正する</button>
+          <div style="display:flex;gap:7px">
+            <button onclick="openEditModal()" class="btn" style="flex:1;font-size:12px;color:var(--t2)">✏️ 修正する</button>
+            <button onclick="toggleRebuildFlag()" id="rebuildBtn" class="btn" style="flex:1;font-size:12px;color:var(--t2)">🔧 再構築フラグ</button>
+          </div>
         </div>
         <div id="ratingArea" style="display:none">
           <div class="r-hint">誤答の理由（キー1/2/3）</div>
@@ -395,6 +398,7 @@ input,textarea,button{font-family:'Noto Sans JP',sans-serif}
       <div class="settings-card">
         <div class="settings-title">データ管理</div>
         <div class="warn-box">採点履歴をリセットします。Notion側は消えません。</div>
+        <button class="btn" style="width:100%;min-height:46px;margin-bottom:8px" onclick="copyRebuildList()">🔧 再構築フラグ一覧をコピー</button>
         <button class="btn" style="width:100%;min-height:46px;border-color:var(--rb);color:var(--rd)" onclick="clearLocal()">ローカル履歴をリセット</button>
       </div>
     </div>
@@ -447,9 +451,42 @@ function updateStats(){if(!S.holes.length)return;const today=new Date().toISOStr
 
 function showTab(t,e){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));el('page-'+t).classList.add('active');if(e)e.classList.add('active');if(t==='summary')renderSummary();if(t==='list')renderList();if(t==='struct')loadStructDB();}
 
-function renderQText(text){return text.replace(/\n/g,'<br>').replace(/〔_〕/g,'<span class="blink-blank">〔　〕</span>');}
+function renderQText(text, otherAnswers){
+  // 他の穴の答えを〔●〕に置換（長い順に処理して短い文字列の誤置換を防ぐ）
+  let processed = text;
+  if(otherAnswers && otherAnswers.length > 0){
+    const sorted = [...otherAnswers].sort((a,b)=>b.length-a.length);
+    sorted.forEach(ans=>{
+      if(!ans || ans.length < 1) return;
+      // 完全一致で置換（正規表現の特殊文字をエスケープ）
+      const escaped = ans.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+      processed = processed.replace(new RegExp(escaped,'g'),'〔●〕');
+    });
+  }
+  // 途中改行を結合: 文末が句読点・閉じ括弧でない場合は次行と結合
+  processed = processed.split("\n").reduce(function(acc,line){
+    if(acc.length===0){return [line];}
+    var prev=acc[acc.length-1];
+    var endsWithBreak=/[。、）」』\u3002\u3001\uff09\u300d\u300f]$/.test(prev);
+    var startsWithHead=/^[〔（「『\uff08\u300c\u300e]/.test(line);
+    if(!endsWithBreak&&!startsWithHead&&prev.length>0&&line.length>0){
+      acc[acc.length-1]=prev+line;
+    } else {
+      acc.push(line);
+    }
+    return acc;
+  },[]).join("\n")
+  return processed
+    .replace(/\n/g,'<br>')
+    .replace(/〔_〕/g,'<span class="blink-blank">〔　〕</span>');
+}
 
-function renderQ(){const h=S.queue[S.cur];const show=!!h;el('qEmpty').style.display=!S.holes.length||!show?'block':'none';el('qContent').style.display=show?'block':'none';el('fixedBar').classList.toggle('show',show);el('editBtnArea').style.display='none';if(!show)return;const pct=Math.round(S.cur/Math.max(S.queue.length,1)*100);el('progBar').style.width=pct+'%';const log=S.holeLog[h.pageId]||{correct:0,total:0};const badge=el('qBadge');if(!log.total){badge.className='badge b-new';badge.textContent='新規';}else if(log.total>=3&&log.correct/log.total<0.5){badge.className='badge b-weak';badge.textContent='弱点';}else{badge.className='badge b-review';badge.textContent='復習';}el('qRank').textContent=h.rank||'';el('qSec').textContent='問題'+h.section+' '+h.title+' #'+h.holeNum;el('qHeading').textContent=h.heading||'';el('qText').innerHTML=renderQText(h.questionText);el('resultBox').style.display='none';el('ratingArea').style.display='none';el('fixedTarget').textContent='〔_〕を答えなさい（穴'+h.holeNum+'）';el('skipSecLabel').textContent='問題'+h.section;el('ansInput').value='';setTimeout(()=>{const b=document.querySelector('.blink-blank');if(b)b.scrollIntoView({behavior:'smooth',block:'center'});el('ansInput').focus();},150);S.answered=false;}
+function renderQ(){const h=S.queue[S.cur];const show=!!h;el('qEmpty').style.display=!S.holes.length||!show?'block':'none';el('qContent').style.display=show?'block':'none';el('fixedBar').classList.toggle('show',show);el('editBtnArea').style.display='none';if(!show)return;const pct=Math.round(S.cur/Math.max(S.queue.length,1)*100);el('progBar').style.width=pct+'%';const log=S.holeLog[h.pageId]||{correct:0,total:0};const badge=el('qBadge');if(!log.total){badge.className='badge b-new';badge.textContent='新規';}else if(log.total>=3&&log.correct/log.total<0.5){badge.className='badge b-weak';badge.textContent='弱点';}else{badge.className='badge b-review';badge.textContent='復習';}el('qRank').textContent=h.rank||'';el('qSec').textContent='問題'+h.section+' '+h.title+' #'+h.holeNum;el('qHeading').textContent=h.heading||'';// 同じ題・同じ大見出しの他の穴の答えを収集
+  const otherAnswers = S.holes
+    .filter(x=>x.section===h.section && x.heading===h.heading && x.pageId!==h.pageId && x.answer)
+    .map(x=>x.answer)
+    .filter(a=>a.length>0);
+  el('qText').innerHTML=renderQText(h.questionText, otherAnswers);el('resultBox').style.display='none';el('ratingArea').style.display='none';el('fixedTarget').textContent='〔_〕を答えなさい（穴'+h.holeNum+'）';el('skipSecLabel').textContent='問題'+h.section;el('ansInput').value='';setTimeout(()=>{const b=document.querySelector('.blink-blank');if(b)b.scrollIntoView({behavior:'smooth',block:'center'});el('ansInput').focus();},150);S.answered=false;}
 
 function norm(s){if(!s)return '';return s.replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/(\d)[,，](\d)/g,'$1$2').replace(/\u3000/g,' ').trim();}
 function matchAnswer(ua,expected){if(!expected)return false;if(norm(ua).includes(norm(expected)))return true;const ne=norm(expected).replace(/等々?/g,'');if(ne.length>0&&norm(ua).includes(ne))return true;return false;}
@@ -473,6 +510,42 @@ function showCorrectAnim(){const colors=['#1D9E75','#5DCAA5','#EF9F27','#F09595'
 function openEditModal(){const h=S.queue[S.cur];if(!h)return;el('editSub').textContent='問題'+h.section+' / '+h.heading+' / 穴'+h.holeNum;el('editQText').value=h.questionText;el('editAns').value=h.answer;el('editStatus').textContent='';el('editModal').classList.remove('hidden');}
 function closeModal(id){el(id).classList.add('hidden');}
 async function saveEdit(){const h=S.queue[S.cur];if(!h)return;const nt=el('editQText').value.trim();const na=el('editAns').value.trim();if(!nt||!na){alert('問題文と正解は必須です');return;}const st=el('editStatus');st.textContent='保存中...';st.style.color='var(--t3)';try{await notionFetch('/v1/pages/'+h.pageId,'PATCH',{properties:{'問題文':{rich_text:[{text:{content:nt.slice(0,2000)}}]},'正解':{rich_text:[{text:{content:na.slice(0,2000)}}]}}});S.holes.forEach((hole,i)=>{if(hole.pageId===h.pageId){S.holes[i].questionText=nt;S.holes[i].answer=na;}});S.queue.forEach((item,i)=>{if(item.pageId===h.pageId){S.queue[i]=Object.assign({},S.queue[i],{questionText:nt,answer:na});}});st.textContent='✓ 保存完了';st.style.color='var(--gd)';setTimeout(()=>{closeModal('editModal');renderQ();},600);}catch(e){st.textContent='✗ 失敗: '+e.message;st.style.color='var(--rd)';}}
+
+async function toggleRebuildFlag(){
+  const h=S.queue[S.cur]; if(!h) return;
+  const btn=el('rebuildBtn');
+  // Notionに「要再構築」チェックボックスをPATCH
+  // プロパティがなければ無視してローカルでフラグ管理
+  try{
+    // ローカルフラグ管理
+    const flagKey=SK+'_rebuildFlags';
+    let flags={};
+    try{flags=JSON.parse(localStorage.getItem(flagKey)||'{}');}catch(e){}
+    const currentFlag=flags[h.pageId]||false;
+    flags[h.pageId]=!currentFlag;
+    localStorage.setItem(flagKey,JSON.stringify(flags));
+    btn.style.color=flags[h.pageId]?'var(--rd)':'var(--t2)';
+    btn.style.borderColor=flags[h.pageId]?'var(--rb)':'var(--br2)';
+    btn.textContent=flags[h.pageId]?'🔧 再構築フラグON':'🔧 再構築フラグ';
+    if(flags[h.pageId]){
+      alert('再構築フラグをONにしました。\nClaude Codeで「再構築フラグのついた問題を修正して」と依頼すると一括修正できます。');
+    }
+  }catch(e){alert('エラー: '+e.message);}
+}
+
+// 再構築フラグONの問題リストをコピー
+function copyRebuildList(){
+  const flagKey=SK+'_rebuildFlags';
+  let flags={};
+  try{flags=JSON.parse(localStorage.getItem(flagKey)||'{}');}catch(e){}
+  const flaggedIds=Object.entries(flags).filter(([pid,v])=>v).map(([pid])=>{
+    const h=S.holes.find(x=>x.pageId===pid);
+    return h?h.holeId+' ('+h.section+' #'+h.holeNum+')':'不明';
+  });
+  if(!flaggedIds.length){alert('再構築フラグのついた問題はありません');return;}
+  const text='再構築フラグONの問題一覧：\n'+flaggedIds.join('\n');
+  navigator.clipboard.writeText(text).then(()=>alert('クリップボードにコピーしました\n\n'+text)).catch(()=>alert(text));
+}
 
 function openRangeModal(){if(!S.holes.length){alert('先に同期してください');return;}const list=el('sectionList');list.innerHTML=S.allSections.map(sec=>{const h=S.holes.find(x=>x.section===sec);const title=h?h.title:'';const log=S.sectionLog[sec]||{correct:0,total:0};const rate=log.total>0?Math.round(log.correct/log.total*100)+'%':'未';const checked=S.selectedSections.includes(sec);return'<label class="section-check"><input type="checkbox" value="'+sec+'" '+(checked?'checked':'')+'>'+' <span class="section-check-label">問'+sec+' '+title+'</span><span style="font-size:10px;color:var(--t3)">'+rate+'</span></label>';}).join('');renderPresets();el('rangeModal').classList.remove('hidden');}
 function selectAll(checked){document.querySelectorAll('#sectionList input').forEach(cb=>cb.checked=checked);}
@@ -509,4 +582,3 @@ setTimeout(()=>{if(getCfg().token)syncAll();else el('qEmpty').style.display='blo
 </script>
 </body>
 </html>
-
