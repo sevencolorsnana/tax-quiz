@@ -490,7 +490,27 @@ function rateNext(rating){const h=S.queue[S.cur];if(h){const{interval,ef}=calcSM
 function nextQ(){S.cur++;S.answered=false;el('resultBox').style.display='none';el('ratingArea').style.display='none';el('editBtnArea').style.display='none';el('ansInput').value='';const pg=el('page-quiz');if(pg)pg.scrollTop=0;renderQ();}
 function showHint(){const h=S.queue[S.cur];if(!h)return;const ans=h.answer||'';alert('ヒント：\n'+(ans.length>0?ans.slice(0,Math.ceil(ans.length/3))+'…':'なし'));}
 function skipQ(){S.cur++;S.answered=false;el('ansInput').value='';const pg=el('page-quiz');if(pg)pg.scrollTop=0;renderQ();}
-function skipQuestion(){const h=S.queue[S.cur];if(!h)return;const ch=h.heading||'';let ni=-1;for(let i=S.cur+1;i<S.queue.length;i++){if(S.queue[i].section!==h.section)break;if((S.queue[i].heading||'')!==ch){ni=i;break;}}if(ni>=0)S.cur=ni;else S.cur++;S.answered=false;el('ansInput').value='';const pg=el('page-quiz');if(pg)pg.scrollTop=0;renderQ();}
+function skipQuestion(){
+  const h=S.queue[S.cur];if(!h)return;
+  // 現在の大見出し（heading）の残り穴をスキップして次の大見出しへ
+  const curHeading=h.heading||'';
+  let ni=-1;
+  for(let i=S.cur+1;i<S.queue.length;i++){
+    const item=S.queue[i];
+    // 別の題に入ったら終了
+    if(item.section!==h.section){ni=i;break;}
+    // 大見出しが変わった箇所が次のセクション
+    if((item.heading||'')!==curHeading){ni=i;break;}
+  }
+  if(ni>=0)S.cur=ni;
+  else{
+    // 同じ大見出しが最後まで続く場合は題の末尾をスキップ
+    while(S.cur<S.queue.length-1&&S.queue[S.cur+1].section===h.section)S.cur++;
+    S.cur++;
+  }
+  S.answered=false;el('ansInput').value='';
+  const pg=el('page-quiz');if(pg)pg.scrollTop=0;renderQ();
+}
 function skipSection(){const h=S.queue[S.cur];if(!h)return;const sec=h.section;const rem=S.queue.filter((item,i)=>i>S.cur&&item.section===sec);S.queue=S.queue.filter((item,i)=>i<=S.cur||item.section!==sec);S.queue=S.queue.concat(rem);nextQ();}
 
 function showCorrectAnim(){const colors=['#1D9E75','#5DCAA5','#EF9F27','#F09595','#85B7EB'];const wrap=document.createElement('div');wrap.className='confetti-wrap';colors.forEach((col,i)=>{const dot=document.createElement('div');dot.className='confetti-dot';dot.style.cssText='background:'+col+';animation-delay:'+i*0.06+'s';wrap.appendChild(dot);});document.body.appendChild(wrap);el('progBar').classList.add('correct-anim');setTimeout(()=>{el('progBar').classList.remove('correct-anim');wrap.remove();},700);}
