@@ -1675,11 +1675,21 @@ async function saveEdit() {
         '正解':   { rich_text: [{ text: { content: newAnswer.slice(0,2000) } }] },
       }
     });
-    // ローカルも更新
+    // ローカルを全箇所更新（questionsリスト・キュー全体）
     const qi = S.questions.findIndex(x=>x.id===q.id);
-    if(qi>=0){ S.questions[qi].questionText=newText; S.questions[qi].answer=newAnswer; }
-    S.queue[S.cur].questionText = newText;
-    S.queue[S.cur].answer = newAnswer;
+    if(qi>=0){
+      S.questions[qi].questionText=newText;
+      S.questions[qi].answer=newAnswer;
+    }
+    // キュー内の同じ問題IDを持つ全アイテムを更新
+    S.queue.forEach((item,i)=>{
+      if(item.id===q.id){
+        S.queue[i] = Object.assign({}, S.queue[i], {
+          questionText: newText,
+          answer: newAnswer
+        });
+      }
+    });
     savingEl.textContent = '✓ 保存完了';
     savingEl.style.color = 'var(--gd)';
     setTimeout(()=>{ closeEditModal(); renderQ(); }, 800);
