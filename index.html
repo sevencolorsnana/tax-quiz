@@ -740,11 +740,7 @@ function buildQueue() {
 
   // 丸数字の順序番号を返す（①=1, ②=2, ..., ㉑=21...）
   function circledNumOrder(ch) {
-    const cp = ch.codePointAt(0);
-    if(cp>=0x2460&&cp<=0x2473) return cp-0x2460+1;
-    if(cp>=0x3251&&cp<=0x325F) return cp-0x3251+21;
-    if(cp>=0x32B1&&cp<=0x32BF) return cp-0x32B1+37;
-    return 99;
+    return circledNumOrder2(ch);
   }
 
   // 題番号でシャッフル、題内は〔1〕〔2〕…の順
@@ -768,9 +764,15 @@ function buildQueue() {
   const expanded=[];
   shuffledSecs.forEach(sec=>{
     secMap[sec].forEach(q=>{
-      const targets=[...q.targetNums].filter(ch=>isCircledNum(ch));
-      // 番号順にソート
-      targets.sort((a,b)=>circledNumOrder(a)-circledNumOrder(b));
+      // 問題文と正解から実際の穴番号を検出（㉑以降も含む）
+        const bqAnswers=parseAnswers(q.answer);
+        const bqNums=new Set();
+        const bqRe=/「([①-⑳㉑-㉟㊱-㊿])」/g;
+        // 正解フィールドのキーを使用
+        Object.keys(bqAnswers).forEach(k=>bqNums.add(k));
+        // targetNumsからも追加（①〜⑳分）
+        ;[...q.targetNums].filter(ch=>isCircledChar(ch)).forEach(ch=>bqNums.add(ch));
+        const targets=[...bqNums].sort((a,b)=>circledNumOrder2(a)-circledNumOrder2(b));
       // 同一回答をまとめて代表番号だけ出題
         const mergedTargets=mergeAnswers(q);
         mergedTargets.forEach(group=>{
@@ -884,9 +886,9 @@ function renderQ() {
   const num=q.currentNum||'①';
   document.getElementById('qText').innerHTML=extractHeadingsWithBlink(q.questionText, num);
   // 同一回答グループの番号をまとめて表示
-  const mergedQ=mergeAnswers(q);
-  const grp=mergedQ.find(g=>g.nums.includes(num));
-  const displayNums=grp&&grp.nums.length>1?grp.nums.join('')+' （同じ答え）':num;
+  const mergedQ2=mergeAnswers(q);
+  const grp2=mergedQ2.find(g=>g.nums.includes(num));
+  const displayNums=grp2&&grp2.nums.length>1?grp2.nums.join(' ')+'（同じ答え）':num;
   document.getElementById('fixedTarget').textContent=displayNums+' を答えなさい';
   document.getElementById('skipSecLabel').textContent='問題'+q.section;
   document.getElementById('ansInput').value='';
@@ -907,6 +909,21 @@ function toCircled(n) {
   if(n>=36&&n<=50) return String.fromCodePoint(0x32B1+n-36);
   return '('+n+')'; // 51以上は(51)形式
 }
+// 文字列対応版 circledNumOrder（グローバル）
+function circledNumOrder2(ch) {
+  if(!ch) return 99;
+  if(ch.length===1) {
+    const cp = ch.codePointAt(0);
+    if(cp>=0x2460&&cp<=0x2473) return cp-0x2460+1;
+    if(cp>=0x3251&&cp<=0x325F) return cp-0x3251+21;
+    if(cp>=0x32B1&&cp<=0x32BF) return cp-0x32B1+37;
+  }
+  // (21)形式
+  const m = ch.match(/^\((\d+)\)$/);
+  if(m) return parseInt(m[1]);
+  return 99;
+}
+
 // 丸数字→数字
 function fromCircled(ch) {
   const cp = ch.codePointAt(0);
@@ -921,32 +938,59 @@ function isCircledChar(ch) { return fromCircled(ch)>0; }
 // 「21」のような数字表記も丸数字として認識
 function parseAnswers(str) {
   if(!str) return {};
-  const map={};
-  // まず数字表記（21答え）を丸数字（㉑答え）に正規化
-  const normalized = str.replace(/(?<![①-⑳㉑-㉟㊱-㊿])(\d{1,2})(?=\s*[^\d])/g, (m,n)=>{
-    const num=parseInt(n);
-    if(num>=1&&num<=50) return toCircled(num);
-    return m;
-  });
-  // 丸数字で分割してパース
-  const circledRe = /[\u2460-\u2473\u3251-\u325F\u32B1-\u32BF]/g;
-  let match, lastIdx=0, lastKey=null;
-  const indices=[];
-  let re2 = new RegExp('[\\u2460-\\u2473\\u3251-\\u325F\\u32B1-\\u32BF]','g');
-  let m2;
-  while((m2=re2.exec(normalized))!==null) indices.push({key:m2[0],idx:m2.index});
-  indices.forEach(({key,idx},i)=>{
-    const nextIdx = i+1<indices.length ? indices[i+1].idx : normalized.length;
-    const val = normalized.slice(idx+1, nextIdx).trim();
-    if(val) map[key]=val;
+  const map = {};
+  // 正解文字列を番号ごとに分割
+  // 対応する丸数字: ①-⑳(U+2460-2473), ㉑-㉟(U+3251-325F), ㊱-㊿(U+32B1-32BF)
+  // さらに(21)形式の半角括弧数字も対応
+  const allNums = [];
+
+  // Unicode丸数字を検出
+  for(let i=0;i<str.length;i++){
+    const cp = str.codePointAt(i);
+    if((cp>=0x2460&&cp<=0x2473)||(cp>=0x3251&&cp<=0x325F)||(cp>=0x32B1&&cp<=0x32BF)){
+      allNums.push({ch:str[i], idx:i, charLen:1});
+    }
+    // サロゲートペア考慮
+    if(cp>0xFFFF) i++;
+  }
+
+  // (21)〜(99)形式も検出
+  const bracketRe = /\((\d{1,2})\)/g;
+  let bm;
+  while((bm=bracketRe.exec(str))!==null){
+    const n=parseInt(bm[1]);
+    if(n>=1&&n<=99) allNums.push({ch:bm[0], idx:bm.index, charLen:bm[0].length, num:n});
+  }
+
+  // idx順でソート
+  allNums.sort((a,b)=>a.idx-b.idx);
+
+  // 各番号の値を抽出
+  allNums.forEach(({ch,idx,charLen},i)=>{
+    const nextIdx = i+1<allNums.length ? allNums[i+1].idx : str.length;
+    const val = str.slice(idx+charLen, nextIdx).trim();
+    if(val) map[ch] = val;
   });
   return map;
 }
 
+
 // 同一回答をまとめる（同セクション内で同じ答えの穴を1つに）
 function mergeAnswers(question) {
   const answers = parseAnswers(question.answer);
-  const targets = [...question.targetNums].filter(ch=>isCircledChar(ch));
+  // questionTextと正解フィールド両方から穴番号を検出（㉑以降も含む）
+  const foundInText = new Set();
+  const foundInAnswer = new Set();
+  // 問題文から〔X〕を検出
+  const textRe = /〔([\u2460-\u2473\u3251-\u325F\u32B1-\u32BF]|\(\d{1,2}\))〕/g;
+  let tm;
+  while((tm=textRe.exec(question.questionText))!==null) foundInText.add(tm[1]);
+  // 正解フィールドのキーを使用
+  Object.keys(answers).forEach(k=>foundInAnswer.add(k));
+  // 両方の和集合から重複除去してソート
+  const allKeys = [...new Set([...foundInText, ...foundInAnswer])];
+  // ソート（丸数字の順序で）
+  const targets = allKeys.sort((a,b)=>circledNumOrder2(a)-circledNumOrder2(b));
   // 答えの値→[穴番号リスト] のマップを作成
   const valToNums = {};
   targets.forEach(num=>{
