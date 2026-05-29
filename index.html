@@ -497,7 +497,25 @@ function showCorrectAnim(){const colors=['#1D9E75','#5DCAA5','#EF9F27','#F09595'
 
 function openEditModal(){const h=S.queue[S.cur];if(!h)return;el('editSub').textContent='問題'+h.section+' / '+h.heading+' / 穴'+h.holeNum;el('editQText').value=h.questionText;el('editAns').value=h.answer;el('editStatus').textContent='';el('editModal').classList.remove('hidden');}
 function closeModal(id){el(id).classList.add('hidden');}
-async function saveEdit(){const h=S.queue[S.cur];if(!h)return;const nt=el('editQText').value.trim();const na=el('editAns').value.trim();if(!nt||!na){alert('問題文と正解は必須です');return;}const st=el('editStatus');st.textContent='保存中...';st.style.color='var(--t3)';try{await notionFetch('/v1/pages/'+h.pageId,'PATCH',{properties:{'問題文':{rich_text:[{text:{content:nt.slice(0,2000)}}]},'正解':{rich_text:[{text:{content:na.slice(0,2000)}}]}}});S.holes.forEach((hole,i)=>{if(hole.pageId===h.pageId){S.holes[i].questionText=nt;S.holes[i].answer=na;}});S.queue.forEach((item,i)=>{if(item.pageId===h.pageId){S.queue[i]=Object.assign({},S.queue[i],{questionText:nt,answer:na});}});st.textContent='✓ 保存完了';st.style.color='var(--gd)';setTimeout(()=>{closeModal('editModal');renderQ();},600);}catch(e){st.textContent='✗ 失敗: '+e.message;st.style.color='var(--rd)';}}
+async function saveEdit(){const h=S.queue[S.cur];if(!h)return;const nt=el('editQText').value.trim();const na=el('editAns').value.trim();if(!nt||!na){alert('問題文と正解は必須です');return;}const st=el('editStatus');st.textContent='保存中...';st.style.color='var(--t3)';try{await notionFetch('/v1/pages/'+h.pageId,'PATCH',{properties:{'問題文':{rich_text:[{text:{content:nt.slice(0,2000)}}]},'正解':{rich_text:[{text:{content:na.slice(0,2000)}}]}}});// holes・queue・現在のキューアイテムを全部更新
+S.holes.forEach((hole,i)=>{
+  if(hole.pageId===h.pageId){
+    S.holes[i].questionText=nt;
+    S.holes[i].answer=na;
+  }
+});
+S.queue.forEach((item,i)=>{
+  if(item.pageId===h.pageId){
+    S.queue[i]=Object.assign({},S.queue[i],{questionText:nt,answer:na});
+  }
+});
+// 現在のキューアイテムも直接更新
+if(S.queue[S.cur]&&S.queue[S.cur].pageId===h.pageId){
+  S.queue[S.cur].questionText=nt;
+  S.queue[S.cur].answer=na;
+}
+st.textContent='✓ 保存完了';st.style.color='var(--gd)';
+setTimeout(()=>{closeModal('editModal');renderQ();},600);}catch(e){st.textContent='✗ 失敗: '+e.message;st.style.color='var(--rd)';}}
 
 async function toggleRebuildFlag(){
   const h=S.queue[S.cur]; if(!h) return;
